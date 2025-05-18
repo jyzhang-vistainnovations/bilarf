@@ -1,5 +1,4 @@
 numpy
-torch
 absl_py
 accelerate
 gin_config
