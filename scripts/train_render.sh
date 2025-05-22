@@ -28,7 +28,7 @@ python render.py --gin_configs=${CONFIG} \
     --gin_bindings="Config.exp_name = '${EXPERIMENT}'" \
     --gin_bindings="Config.render_path = True" \
     --gin_bindings="Config.render_path_frames = 120" \
-    --gin_bindings="Config.render_video_fps = 60"
+    --gin_bindings="Config.render_video_fps = 5"
 
 
 # # Render training views

@@ -156,6 +156,9 @@ def main(unused_argv):
         batch = tree_map(lambda x: x.to(accelerator.device) if x is not None else None, batch)
         logger.info(f'Evaluating image {idx + 1}/{dataset.size}')
         eval_start_time = time.time()
+        for k, v in batch.items():
+            if v is not None:
+                logger.info(f"Ray batch tensor '{k}' has shape {v.shape}")
         rendering = models.render_image(model, accelerator,
                                         batch, False, 1, config)
 
