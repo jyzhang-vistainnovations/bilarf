@@ -13,3 +13,4 @@ data/
 scripts/__*
 __*/
 *.egg-info
+*.log

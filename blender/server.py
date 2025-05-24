@@ -171,43 +171,55 @@ def load_nerf_model(checkpoint_path: str) -> bool:
 
 def create_rays_from_camera_params(params: Dict[str, Any]) -> Dict[str, torch.Tensor]:
     """Create rays from the provided camera parameters, similar to generate_ray_batch"""
+    width = params["width"]
+    height = params["height"]
+    transform = np.array(params['transform'], dtype=np.float32)
+    scaling_factor = params['scaling_factor']
     
-    # Extract camera parameters
-    width = params.get("width", 800)
-    height = params.get("height", 600)
+    camtoworld_list = params["camtoworld"]                                                       
+    camtoworld = np.array(camtoworld_list, dtype=np.float32)
+
+    # Ensure it's 4x4
+    if camtoworld.shape == (3, 4):
+        camtoworld = camera_utils.pad_poses(camtoworld)
+    elif camtoworld.shape == (4, 4):
+        raise ValueError(f"camtoworld must be 3x4 or 4x4 matrix, got {camtoworld.shape}")
     
-    # Get camera extrinsics (world to camera transform)
-    R = np.array(params.get("R", np.eye(3)), dtype=np.float32)
-    T = np.array(params.get("T", np.zeros(3)), dtype=np.float32)
+    # Switch from COLMAP (right, down, fwd) to NeRF (right, up, back) frame.
+    # camtoworld = camtoworld @ np.diag([1, -1, -1, 1])
+
+    camtoworld = transform @ camtoworld
+    camtoworld[:3, 3] *= scaling_factor
     
-    # Create camera-to-world transform
-    camtoworld = np.zeros((3, 4), dtype=np.float32)
-    camtoworld[:3, :3] = R.T  # Transpose R for camera-to-world
-    camtoworld[:3, 3] = -R.T @ T  # -R^T * T for camera-to-world translation
+    # Ensure it's 3x4
+    camtoworld = camtoworld[:3, :]
     
-    # Get focal length (either from params or default)
-    focal = params.get("focal", 1000.0)  # Default value if not provided
-    
-    # Create inverse intrinsic matrix (pixel to camera)
-    pixtocam = camera_utils.get_pixtocam(focal, width, height)
+    focal_x = params["focal_x"]
+    focal_y = params["focal_y"]
+    cx = params["cx"]
+    cy = params["cy"]
+    image_downsample_fac = params["image_downsample_fac"]
+    # # Create inverse intrinsic matrix (pixel to camera)
+    pixtocam = np.linalg.inv(camera_utils.intrinsic_matrix(focal_x, focal_y, cx, cy))
+    pixtocam = np.array(pixtocam, dtype=np.float32)
+    pixtocam = pixtocam @ np.diag([image_downsample_fac, image_downsample_fac, 1.])
+    pixtocam = np.array(pixtocam, dtype=np.float32)    
     
     # Generate pixel coordinates - output shape is (height, width)
     pix_x_int, pix_y_int = camera_utils.pixel_coordinates(width, height)
-    
-    # Create the ray batch
-    # Similar to _make_ray_batch in the Dataset class
+
     cam_idx = 0  # Since we're just using one camera
     
     # Prepare camera parameters
     cameras = (
-        pixtocam,  # No batch dimension
-        camtoworld,  # No batch dimension
+        pixtocam, 
+        camtoworld,
         None,  # distortion_params
         None   # pixtocam_ndc
     )
     
     # Prepare pixel parameters
-    near = config.near if config else 0.1
+    near = config.near if config else 0.2
     far = config.far if config else 1000.0
     
     broadcast_scalar = lambda x: np.broadcast_to(x, pix_x_int.shape)[..., None]
@@ -236,6 +248,7 @@ def create_rays_from_camera_params(params: Dict[str, Any]) -> Dict[str, torch.Te
     pix_x_float = (pix_x_int.astype(np.float32) + 0.5) / width
     pix_y_float = (pix_y_int.astype(np.float32) + 0.5) / height
     batch['pix_xy'] = np.stack([pix_x_float, pix_y_float], axis=-1)
+    print(batch['pix_xy'])
     
     # Convert to torch tensors
     batch = {k: torch.from_numpy(v.copy()).float() if v is not None else None for k, v in batch.items()}
@@ -452,7 +465,7 @@ if __name__ == "__main__":
             logger.error(f"Error loading checkpoint: {str(e)}")
             logger.error(traceback.format_exc())
             logger.warning("Server will start, but model is not initialized")
-    
+    load_nerf_model("exp/test_apr29_1/checkpoints")
     # Start the server
     logger.info(f"Starting server on {args.host}:{args.port}")
     try:

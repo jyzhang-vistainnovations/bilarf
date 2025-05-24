@@ -194,9 +194,8 @@ def transform_poses_pca(poses):
     # Just make sure it's it in the [-1, 1]^3 cube
     scale_factor = 1. / np.max(np.abs(poses_recentered[:, :3, 3]))
     poses_recentered[:, :3, 3] *= scale_factor
-    transform = np.diag(np.array([scale_factor] * 3 + [1])) @ transform
 
-    return poses_recentered, transform
+    return poses_recentered, transform, scale_factor
 
 
 def generate_ellipse_path(poses, n_frames=120, const_speed=True, z_variation=0., z_phase=0.):

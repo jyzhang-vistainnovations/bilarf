@@ -611,7 +611,17 @@ class LLFF(Dataset):
                 spiral_scale_r=extconf['spiral_radius_scale'] if 'spiral_radius_scale' in extconf else 1.0)
         else:
             # Rotate/scale poses to align ground with xy plane and fit to unit cube.
-            poses, transform = camera_utils.transform_poses_pca(poses)
+            poses, transform, scaling_factor = camera_utils.transform_poses_pca(poses)
+
+            transform_data = {
+                'transform': transform.tolist(),  
+                'scaling_factor': float(scaling_factor) 
+            }
+
+            transform_path = os.path.join(config.exp_path, 'transform.json')
+            with open(transform_path, 'w') as f:
+                json.dump(transform_data, f, indent=2)
+                
             self.colmap_to_world_transform = transform
             if config.render_spline_keyframes is not None:
                 rets = camera_utils.create_render_spline_path(config, image_names,
