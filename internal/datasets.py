@@ -615,13 +615,14 @@ class LLFF(Dataset):
 
             transform_data = {
                 'transform': transform.tolist(),  
-                'scaling_factor': float(scaling_factor) 
+                'scaling_factor': float(scaling_factor),
+                'dataset_size': len(image_names)
             }
 
             transform_path = os.path.join(config.exp_path, 'transform.json')
             with open(transform_path, 'w') as f:
                 json.dump(transform_data, f, indent=2)
-                
+
             self.colmap_to_world_transform = transform
             if config.render_spline_keyframes is not None:
                 rets = camera_utils.create_render_spline_path(config, image_names,

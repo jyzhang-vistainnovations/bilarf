@@ -5,11 +5,10 @@ Config.far = 1e6
 Config.factor = 4
 Config.forward_facing = False
 Config.train_render_every = 5000
-Config.llff_use_all_images_for_training = True
 
 Model.raydist_fn = 'power_transformation'
 Model.opaque_background = False
-Model.bilateral_grid = True
+Model.bilateral_grid = False
 
 PropMLP.disable_density_normals = True
 PropMLP.disable_rgb = True

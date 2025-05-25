@@ -6,6 +6,7 @@ This script starts a Flask server that loads NeRF models from ZIP files
 and renders views based on provided camera parameters.
 """
 
+import json
 import os
 import sys
 import gin
@@ -125,17 +126,17 @@ def extract_zip_checkpoint(zip_path: str) -> str:
         raise
 
 def load_nerf_model(checkpoint_path: str) -> bool:
-    """Load a NeRF model from a checkpoint directory or ZIP file"""
+    """Load a NeRF model from a checkpoint directory"""
     global nerf_model, config, accelerator
 
     try:
-        logger.info(f"Loading NeRF model from: {checkpoint_path}")
+        logger.info(f"Loading NeRF model from checkpoint: {checkpoint_path}")
 
         # Check if path exists
         if not os.path.exists(checkpoint_path):
             logger.error(f"Checkpoint path not found: {checkpoint_path}")
             return False
-
+        
         # Determine if it's a ZIP file or directory
         if checkpoint_path.endswith('.zip'):
             # Extract ZIP file and get checkpoint directory
@@ -144,13 +145,22 @@ def load_nerf_model(checkpoint_path: str) -> bool:
             # Use directory directly
             checkpoint_dir = checkpoint_path
 
+        # Load dataset size from transform.json
+        transform_json_path = os.path.join(checkpoint_dir, "..", "transform.json")
+        dataset_size = 57  # Default fallback value
+        
+        with open(transform_json_path, 'r') as f:
+            transform_data = json.load(f)
+            dataset_size = transform_data['dataset_size']
+            logger.info(f"Loaded dataset size from transform.json: {dataset_size}")
+
         # Restore the checkpoint
         from accelerate import Accelerator
         accelerator = Accelerator()
         
-        # Set dataset info based on expected config values
+        # Set dataset info with loaded size
         dataset_info_for_model = {
-            'size': 49,  # Just a placeholder, not used for rendering
+            'size': dataset_size,
         }
         
         # Create and prepare model
@@ -220,7 +230,7 @@ def create_rays_from_camera_params(params: Dict[str, Any]) -> Dict[str, torch.Te
     
     # Prepare pixel parameters
     near = config.near if config else 0.2
-    far = config.far if config else 1000.0
+    far = config.far if config else 1e6
     
     broadcast_scalar = lambda x: np.broadcast_to(x, pix_x_int.shape)[..., None]
     
@@ -465,7 +475,9 @@ if __name__ == "__main__":
             logger.error(f"Error loading checkpoint: {str(e)}")
             logger.error(traceback.format_exc())
             logger.warning("Server will start, but model is not initialized")
-    load_nerf_model("exp/test_apr29_1/checkpoints")
+
+    # load_nerf_model("exp/test_apr29_1/checkpoints")
+    
     # Start the server
     logger.info(f"Starting server on {args.host}:{args.port}")
     try:
