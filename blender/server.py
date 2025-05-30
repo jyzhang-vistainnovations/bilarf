@@ -229,8 +229,8 @@ def create_rays_from_camera_params(params: Dict[str, Any]) -> Dict[str, torch.Te
     )
     
     # Prepare pixel parameters
-    near = config.near if config else 0.2
-    far = config.far if config else 1e6
+    near = params["near"]
+    far = params["far"]
     
     broadcast_scalar = lambda x: np.broadcast_to(x, pix_x_int.shape)[..., None]
     
